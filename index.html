@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
     --bg:#1A1815;
@@ -748,20 +749,37 @@ async function driveLoadLatest(){
   }
   statusEl.textContent = "Suche neueste Datei...";
   try{
-    const q = encodeURIComponent("name contains 'sleep-export' and trashed = false");
-    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=1&fields=files(id,name,modifiedTime)`, {
+    const q = encodeURIComponent("name contains 'Sleep as Android' and trashed = false");
+    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=5&fields=files(id,name,modifiedTime,mimeType)`, {
       headers: { Authorization: `Bearer ${driveAccessToken}` }
     });
     if(!listRes.ok) throw new Error(`Suche fehlgeschlagen (HTTP ${listRes.status})`);
     const listData = await listRes.json();
-    if(!listData.files || !listData.files.length) throw new Error("Keine sleep-export Datei in Drive gefunden");
-    const file = listData.files[0];
+    if(!listData.files || !listData.files.length) throw new Error("Keine Sleep as Android Backup-Datei in Drive gefunden");
+    // prefer a file (not folder) match
+    const file = listData.files.find(f => f.mimeType !== 'application/vnd.google-apps.folder') || listData.files[0];
     statusEl.textContent = `Lade ${file.name}...`;
     const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
       headers: { Authorization: `Bearer ${driveAccessToken}` }
     });
     if(!fileRes.ok) throw new Error(`Download fehlgeschlagen (HTTP ${fileRes.status})`);
-    const text = await fileRes.text();
+    const buffer = await fileRes.arrayBuffer();
+
+    let text;
+    // detect zip signature (PK) vs plain text
+    const bytes = new Uint8Array(buffer.slice(0, 2));
+    const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
+    if(isZip){
+      statusEl.textContent = "Entpacke Archiv...";
+      const zip = await JSZip.loadAsync(buffer);
+      const csvEntry = Object.keys(zip.files).find(name => name.toLowerCase().endsWith('sleep-export.csv')) ||
+                        Object.keys(zip.files).find(name => name.toLowerCase().endsWith('.csv'));
+      if(!csvEntry) throw new Error("Kein sleep-export.csv im Archiv gefunden");
+      text = await zip.files[csvEntry].async('string');
+    } else {
+      text = new TextDecoder('utf-8').decode(buffer);
+    }
+
     const parsed = parseCSV(text);
     if(!parsed.length) throw new Error("Datei leer oder unlesbar");
     rows = parsed.map(normalizeRow).filter(r => r.from);
