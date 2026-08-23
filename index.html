@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --bg:#1A1815;
+    --surface:#211E19;
+    --surface-2:#29251F;
+    --line:#3B362D;
+    --text:#EDE8DE;
+    --text-dim:#8C8577;
+    --signal:#D96C4B;
+    --signal-soft:rgba(217,108,75,0.14);
+    --ok:#6FA88C;
+    --ok-soft:rgba(111,168,140,0.14);
+    --night:#5B6478;
+    --bad:#C96A5F;
+    --r:10px;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-tap-highlight-color:transparent; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:'Public Sans',sans-serif;
+    min-height:100vh; padding-bottom:40px;
+  }
+  h1,h2,h3, .display{ font-family:'Space Grotesk',sans-serif; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; } }
+  :focus-visible{ outline:2px solid var(--signal); outline-offset:2px; }
+
+  .app{ max-width:520px; margin:0 auto; padding:20px 18px 0; }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:22px;
+  }
+  .brand{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.15rem;
+    letter-spacing:0.02em;
+  }
+  .brand span{ color:var(--signal); }
+  nav{ display:flex; gap:6px; }
+  .navbtn{
+    background:none; border:1px solid var(--line); color:var(--text-dim);
+    font-family:'Public Sans',sans-serif; font-weight:600; font-size:0.78rem;
+    padding:8px 12px; border-radius:8px; cursor:pointer; transition:all 0.15s ease;
+  }
+  .navbtn.active{ background:var(--surface-2); color:var(--text); border-color:var(--line); }
+  .navbtn.icon{ padding:8px 9px; display:flex; align-items:center; }
+  .navbtn:hover{ color:var(--text); }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  /* ---- DIAL ---- */
+  .dial-wrap{ position:relative; display:flex; justify-content:center; margin:6px 0 24px; }
+  .dial-center{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    text-align:center; pointer-events:none;
+  }
+  .dial-time{ font-family:'IBM Plex Mono',monospace; font-size:2rem; font-weight:600; letter-spacing:-0.02em; }
+  .dial-phase{
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.72rem;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--signal); margin-top:2px;
+  }
+  .dial-phase.is-night{ color:var(--night); }
+  .dial-phase.is-day{ color:var(--text-dim); }
+
+  /* ---- PHASE PANEL ---- */
+  .panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--r);
+    padding:18px; margin-bottom:14px;
+  }
+  .panel-head{
+    display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px;
+  }
+  .panel-head h2{ font-size:1rem; font-weight:600; }
+  .panel-head .count{ font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--text-dim); }
+
+  .step{
+    display:flex; align-items:flex-start; gap:12px; padding:11px 0;
+    border-top:1px solid var(--line); cursor:pointer; user-select:none;
+  }
+  .step:first-child{ border-top:none; }
+  .step .box{
+    width:19px; height:19px; border-radius:5px; border:1.5px solid var(--line);
+    flex-shrink:0; margin-top:2px; display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s ease;
+  }
+  .step .box svg{ width:11px; height:11px; opacity:0; transition:opacity 0.15s ease; }
+  .step.done .box{ background:var(--ok); border-color:var(--ok); }
+  .step.done .box svg{ opacity:1; }
+  .step.done .label{ color:var(--text-dim); text-decoration:line-through; text-decoration-color:var(--line); }
+
+  .step-body{ flex:1; }
+  .step-row{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .step .label{ font-weight:600; font-size:0.92rem; }
+  .step .time{ font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--text-dim); white-space:nowrap; }
+  .step .desc{ font-size:0.78rem; color:var(--text-dim); margin-top:2px; }
+
+  .step.current{ position:relative; }
+  .step.current .box{ border-color:var(--signal); }
+  .step.current::before{
+    content:""; position:absolute; left:-18px; top:0; bottom:0; width:2px; background:var(--signal);
+  }
+  .step.current .time{ color:var(--signal); font-weight:600; }
+
+  /* calm state (day / night) */
+  .calm{ text-align:center; padding:12px 8px 6px; }
+  .calm .msg{ font-size:0.92rem; color:var(--text); margin-bottom:4px; }
+  .calm .sub{ font-size:0.78rem; color:var(--text-dim); }
+  .calm .countdown{ font-family:'IBM Plex Mono',monospace; font-size:1.4rem; margin:10px 0 2px; color:var(--signal); }
+
+  .link-btn{
+    background:none; border:none; color:var(--text-dim); font-size:0.78rem;
+    text-decoration:underline; cursor:pointer; padding:4px 0; margin-bottom:14px;
+    font-family:'Public Sans',sans-serif;
+  }
+  .link-btn:hover{ color:var(--text); }
+
+  .accordion-item{ border-top:1px solid var(--line); }
+  .accordion-item:first-child{ border-top:none; }
+  .accordion-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 0; cursor:pointer; font-weight:600; font-size:0.88rem;
+  }
+  .accordion-head .chev{ transition:transform 0.15s ease; color:var(--text-dim); }
+  .accordion-item.open .chev{ transform:rotate(90deg); }
+  .accordion-body{ display:none; padding-bottom:8px; }
+  .accordion-item.open .accordion-body{ display:block; }
+
+  /* ---- SLEEP VIEW ---- */
+  .dropzone{
+    border:1.5px dashed var(--line); border-radius:var(--r); padding:28px 16px;
+    text-align:center; cursor:pointer; transition:all 0.15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{ border-color:var(--signal); background:var(--signal-soft); }
+  .dropzone .main{ font-weight:600; font-size:0.9rem; }
+  .dropzone .hint{ font-size:0.75rem; color:var(--text-dim); margin-top:4px; }
+  input[type=file]{ display:none; }
+
+  .file-badge{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--surface-2); border-radius:8px; padding:9px 12px;
+    font-size:0.8rem; margin-top:10px;
+  }
+  .file-badge button{ background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:0.75rem; text-decoration:underline; }
+
+  .stats-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+  .stat{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:13px; }
+  .stat .label{ font-size:0.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; }
+  .stat .value{ font-family:'IBM Plex Mono',monospace; font-size:1.3rem; font-weight:600; margin-top:4px; }
+  .stat .delta{ font-size:0.7rem; margin-top:3px; }
+  .stat .delta.bad{ color:var(--bad); }
+  .stat .delta.ok{ color:var(--ok); }
+
+  canvas{ max-height:190px; }
+
+  .btn{
+    background:var(--signal); color:#1A1815; border:none; border-radius:8px;
+    padding:10px 16px; font-weight:700; font-size:0.85rem; cursor:pointer;
+    font-family:'Public Sans',sans-serif; transition:opacity 0.15s ease;
+  }
+  .btn:hover{ opacity:0.88; }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; }
+  .btn-ghost{ background:none; border:1px solid var(--line); color:var(--text); }
+
+  .ai-result{
+    background:var(--surface-2); border-radius:8px; padding:14px; margin-top:14px;
+    font-size:0.87rem; line-height:1.6; white-space:pre-wrap;
+  }
+  .ai-result.empty{ color:var(--text-dim); font-style:italic; }
+  .spinner{
+    display:inline-block; width:13px; height:13px; border:2px solid var(--line);
+    border-top-color:var(--signal); border-radius:50%; animation:spin 0.7s linear infinite;
+    margin-right:7px; vertical-align:middle;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .error-box{
+    background:rgba(201,106,95,0.12); border:1px solid var(--bad); border-radius:8px;
+    padding:11px 13px; font-size:0.8rem; margin-top:10px; color:#F0B6AE;
+  }
+  .empty-state{ text-align:center; padding:30px 12px; color:var(--text-dim); font-size:0.88rem; }
+
+  /* ---- SETTINGS ---- */
+  .field-label{ font-size:0.78rem; color:var(--text-dim); margin-bottom:6px; display:block; }
+  .key-row{ display:flex; gap:8px; }
+  input[type=password], input[type=text]{
+    flex:1; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; color:var(--text); font-family:'IBM Plex Mono',monospace;
+    font-size:0.8rem;
+  }
+  input:focus{ outline:none; border-color:var(--signal); }
+  .note{ font-size:0.74rem; color:var(--text-dim); margin-top:10px; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">CYCLE<span>.</span></div>
+    <nav>
+      <button class="navbtn active" data-view="routine">Routine</button>
+      <button class="navbtn" data-view="sleep">Schlaf</button>
+      <button class="navbtn icon" data-view="settings" aria-label="Einstellungen">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09A1.65 1.65 0 0015.4 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ============ ROUTINE VIEW ============ -->
+  <section class="view active" id="view-routine">
+
+    <div class="dial-wrap">
+      <svg id="dial" width="220" height="220" viewBox="0 0 240 240"></svg>
+      <div class="dial-center">
+        <div class="dial-time mono" id="dialTime">--:--</div>
+        <div class="dial-phase" id="dialPhase">—</div>
+      </div>
+    </div>
+
+    <div class="panel" id="phasePanel"></div>
+
+    <button class="link-btn" id="toggleFullDay">Ganzen Tagesplan zeigen</button>
+    <div class="panel" id="fullDayPanel" hidden></div>
+
+  </section>
+
+  <!-- ============ SLEEP VIEW ============ -->
+  <section class="view" id="view-sleep">
+
+    <div class="panel">
+      <div class="panel-head"><h2>Sleep-as-Android Export</h2></div>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="CSV Datei hochladen">
+        <div class="main">CSV hier reinziehen oder klicken</div>
+        <div class="hint">Menü → Backup → Export data in Sleep as Android</div>
+        <input type="file" id="fileInput" accept=".csv">
+      </div>
+      <div id="fileBadge"></div>
+      <div id="parseError"></div>
+      <div style="margin-top:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="driveLoadBtn" disabled>Neueste Daten aus Google Drive laden</button>
+        <span class="note" id="driveStatus" style="margin:0;">Nicht verbunden — in den Einstellungen einrichten</span>
+      </div>
+    </div>
+
+    <div id="sleepDashboard" style="display:none">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="panel"><div class="panel-head"><h2>Schlafdauer</h2></div><canvas id="durationChart"></canvas></div>
+      <div class="panel"><div class="panel-head"><h2>Bettgeh-Konsistenz <span class="mono" style="font-size:0.68rem;color:var(--text-dim);font-weight:400">Ziel 22:15</span></h2></div><canvas id="bedtimeChart"></canvas></div>
+      <div class="panel"><div class="panel-head"><h2>Aufwach-Konsistenz <span class="mono" style="font-size:0.68rem;color:var(--text-dim);font-weight:400">Ziel 04:30</span></h2></div><canvas id="waketimeChart"></canvas></div>
+      <div class="panel"><div class="panel-head"><h2>Rating &amp; Schnarchen</h2></div><canvas id="ratingChart"></canvas></div>
+    </div>
+
+    <div class="panel" id="sleepEmpty">
+      <div class="empty-state">Noch keine Daten geladen – exportier deine CSV und zieh sie oben rein.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>KI-Auswertung</h2></div>
+      <button class="btn" id="analyzeBtn" disabled>Schlaf analysieren</button>
+      <div id="aiResult" class="ai-result empty">Noch keine Analyse durchgeführt.</div>
+    </div>
+
+  </section>
+
+  <!-- ============ SETTINGS VIEW ============ -->
+  <section class="view" id="view-settings">
+    <div class="panel">
+      <div class="panel-head"><h2>Gemini API Key</h2></div>
+      <label class="field-label" for="apiKey">Für die Schlaf-KI-Auswertung</label>
+      <div class="key-row">
+        <input type="password" id="apiKey" placeholder="Key von aistudio.google.com">
+        <button class="btn btn-ghost" id="saveKeyBtn">Speichern</button>
+      </div>
+      <div class="note">Wird ausschließlich in deinem Browser (localStorage) gespeichert — geht nirgends sonst hin. Kostenlosen Key holen: aistudio.google.com → "Get API key".</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Google Drive Verbindung</h2></div>
+      <label class="field-label" for="driveClientId">OAuth Client ID (aus Google Cloud Console)</label>
+      <div class="key-row">
+        <input type="text" id="driveClientId" placeholder="xxxxx.apps.googleusercontent.com">
+        <button class="btn btn-ghost" id="saveDriveIdBtn">Speichern</button>
+      </div>
+      <div style="margin-top:12px;">
+        <button class="btn" id="driveConnectBtn">Mit Google Drive verbinden</button>
+        <span class="note" id="driveConnectStatus" style="margin:0 0 0 8px; display:inline-block;"></span>
+      </div>
+      <div class="note">Damit liest die App automatisch die neueste Sleep-as-Android-Sicherung aus deinem Drive. Nur Lesezugriff, nichts wird verändert oder hochgeladen.</div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ===================== PHASE DATA ===================== */
+const MORNING_STEPS = [
+  { s:270, e:275, label:"Aufwachen & wach werden", desc:"Alarm, Licht an, kurz durchatmen" },
+  { s:275, e:285, label:"Wasser trinken", desc:"" },
+  { s:285, e:325, label:"Lernen", desc:"Wiederholung – Vokabeln, Formeln, nix Neues" },
+  { s:325, e:335, label:"Bad", desc:"Zähne, Gesicht, Deo" },
+  { s:335, e:345, label:"Anziehen", desc:"" },
+  { s:345, e:360, label:"Frühstück", desc:"" },
+  { s:360, e:365, label:"Startklar machen", desc:"Tasche checken, Schuhe an, Jacke bereit" },
+  { s:365, e:379, label:"Handy / Chillen", desc:"" },
+  { s:379, e:380, label:"Raus", desc:"Alles schon fertig — 1 Minute" }
+];
+const EVENING_STEPS = [
+  { s:1290, e:1293, label:"Gaming Ende", desc:"Programme schließen, PC runterfahren" },
+  { s:1293, e:1298, label:"Zähne putzen", desc:"" },
+  { s:1298, e:1308, label:"Duschen", desc:"" },
+  { s:1308, e:1313, label:"Hautpflege", desc:"Gesicht, Feuchtigkeitscreme" },
+  { s:1313, e:1318, label:"Deo, Schlafanzug", desc:"" },
+  { s:1318, e:1325, label:"Sachen vorbereiten", desc:"Tasche, Klamotten, Schuhe, Ladekabel" },
+  { s:1325, e:1332, label:"Screenfrei chillen", desc:"Lesen, Musik, dehnen" },
+  { s:1332, e:1335, label:"Ins Bett, Licht aus", desc:"Handy weglegen" }
+];
+const PHASE_BOUNDS = { morning:[270,380], day:[380,1290], evening:[1290,1335], night:[1335,270+1440] };
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function minToHHMM(min){
+  min = ((min % 1440)+1440)%1440;
+  return pad(Math.floor(min/60))+':'+pad(min%60);
+}
+function nowMinutes(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+
+function getPhaseKey(nowMin){
+  if(nowMin>=PHASE_BOUNDS.evening[0] && nowMin<PHASE_BOUNDS.evening[1]) return 'evening';
+  if(nowMin>=PHASE_BOUNDS.night[0] || nowMin<PHASE_BOUNDS.morning[0]) return 'night';
+  if(nowMin>=PHASE_BOUNDS.morning[0] && nowMin<PHASE_BOUNDS.morning[1]) return 'morning';
+  return 'day';
+}
+
+/* ===================== DIAL ===================== */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const CX=120, CY=120, R=100, STROKE=11;
+const CIRC = 2*Math.PI*R;
+
+function buildDial(){
+  const svg = document.getElementById('dial');
+  svg.innerHTML = "";
+  const g = document.createElementNS(SVG_NS,'g');
+  g.setAttribute('transform', `rotate(-90 ${CX} ${CY})`);
+
+  const arcs = [
+    { start:PHASE_BOUNDS.night[0], end:PHASE_BOUNDS.night[1], color:'var(--night)' },
+    { start:PHASE_BOUNDS.morning[0], end:PHASE_BOUNDS.morning[1], color:'var(--signal)' },
+    { start:PHASE_BOUNDS.day[0], end:PHASE_BOUNDS.day[1], color:'var(--line)' },
+    { start:PHASE_BOUNDS.evening[0], end:PHASE_BOUNDS.evening[1], color:'var(--signal)' }
+  ];
+
+  arcs.forEach(a => {
+    const len = ((a.end - a.start)/1440)*CIRC;
+    const offset = -(a.start/1440)*CIRC;
+    const c = document.createElementNS(SVG_NS,'circle');
+    c.setAttribute('cx',CX); c.setAttribute('cy',CY); c.setAttribute('r',R);
+    c.setAttribute('fill','none');
+    c.setAttribute('stroke',a.color);
+    c.setAttribute('stroke-width',STROKE);
+    c.setAttribute('stroke-linecap','butt');
+    c.setAttribute('stroke-dasharray',`${len} ${CIRC-len}`);
+    c.setAttribute('stroke-dashoffset',offset);
+    g.appendChild(c);
+  });
+
+  svg.appendChild(g);
+
+  const marker = document.createElementNS(SVG_NS,'circle');
+  marker.setAttribute('id','dialMarker');
+  marker.setAttribute('r',7);
+  marker.setAttribute('fill','var(--bg)');
+  marker.setAttribute('stroke','var(--text)');
+  marker.setAttribute('stroke-width',2.5);
+  svg.appendChild(marker);
+}
+
+function updateMarker(nowMin){
+  const angleDeg = (nowMin/1440)*360 - 90;
+  const rad = angleDeg*Math.PI/180;
+  const x = CX + R*Math.cos(rad);
+  const y = CY + R*Math.sin(rad);
+  const marker = document.getElementById('dialMarker');
+  if(marker){ marker.setAttribute('cx',x); marker.setAttribute('cy',y); }
+}
+
+/* ===================== ROUTINE RENDER ===================== */
+function todayKey(name){
+  const d = new Date();
+  return `cycle_${name}_${d.toISOString().slice(0,10)}`;
+}
+function loadDone(name){ try{ return JSON.parse(localStorage.getItem(todayKey(name))||"[]"); }catch(e){ return []; } }
+function saveDone(name, arr){ localStorage.setItem(todayKey(name), JSON.stringify(arr)); }
+
+function stepHTML(step, i, phaseName, done, isCurrent){
+  return `
+    <div class="step ${done.includes(i)?'done':''} ${isCurrent?'current':''}" data-i="${i}" data-phase="${phaseName}">
+      <div class="box"><svg viewBox="0 0 24 24" fill="none" stroke="#1A1815" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg></div>
+      <div class="step-body">
+        <div class="step-row">
+          <div class="label">${step.label}</div>
+          <div class="time mono">${minToHHMM(step.s)}–${minToHHMM(step.e)}</div>
+        </div>
+        ${step.desc?`<div class="desc">${step.desc}</div>`:""}
+      </div>
+    </div>`;
+}
+
+function renderPhasePanel(){
+  const nowMin = nowMinutes();
+  const key = getPhaseKey(nowMin);
+
+  document.getElementById('dialTime').textContent = minToHHMM(nowMin);
+  const phaseEl = document.getElementById('dialPhase');
+  const panel = document.getElementById('phasePanel');
+
+  if(key === 'morning' || key === 'evening'){
+    const steps = key === 'morning' ? MORNING_STEPS : EVENING_STEPS;
+    const name = key === 'morning' ? 'MORGENROUTINE' : 'ABENDROUTINE';
+    phaseEl.textContent = name;
+    phaseEl.className = 'dial-phase';
+    const done = loadDone(key);
+    const currentIdx = steps.findIndex(s => nowMin>=s.s && nowMin<s.e);
+    panel.innerHTML = `
+      <div class="panel-head"><h2>${name === 'MORGENROUTINE' ? 'Morgenroutine' : 'Abendroutine'}</h2><span class="count mono">${done.length}/${steps.length}</span></div>
+      ${steps.map((s,i)=>stepHTML(s,i,key,done,i===currentIdx)).join('')}
+    `;
+    panel.querySelectorAll('.step').forEach(el => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.i);
+        const p = el.dataset.phase;
+        let d = loadDone(p);
+        d = d.includes(i) ? d.filter(x=>x!==i) : [...d, i];
+        saveDone(p, d);
+        renderPhasePanel();
+      });
+    });
+  } else if(key === 'night'){
+    phaseEl.textContent = 'SCHLAF';
+    phaseEl.className = 'dial-phase is-night';
+    let remaining = nowMin>=1335 ? (270+1440)-nowMin : 270-nowMin;
+    panel.innerHTML = `
+      <div class="calm">
+        <div class="msg">Licht aus.</div>
+        <div class="countdown mono">${minToHHMM(remaining).replace(':','h ')}m</div>
+        <div class="sub">bis Aufwachen (04:30)</div>
+      </div>`;
+  } else {
+    phaseEl.textContent = 'TAG';
+    phaseEl.className = 'dial-phase is-day';
+    let remaining = 1290 - nowMin;
+    panel.innerHTML = `
+      <div class="calm">
+        <div class="msg">Kein aktiver Routine-Block.</div>
+        <div class="countdown mono">${minToHHMM(remaining).replace(':','h ')}m</div>
+        <div class="sub">bis Abendroutine (21:30)</div>
+      </div>`;
+  }
+
+  updateMarker(nowMin);
+}
+
+/* full day accordion */
+function renderFullDay(){
+  const el = document.getElementById('fullDayPanel');
+  const blocks = [
+    { key:'morning', name:'Morgenroutine', steps:MORNING_STEPS },
+    { key:'evening', name:'Abendroutine', steps:EVENING_STEPS }
+  ];
+  el.innerHTML = blocks.map(b => {
+    const done = loadDone(b.key);
+    return `
+      <div class="accordion-item">
+        <div class="accordion-head" data-key="${b.key}">
+          <span>${b.name}</span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 6 15 12 9 18"></polyline></svg>
+        </div>
+        <div class="accordion-body">
+          ${b.steps.map((s,i)=>stepHTML(s,i,b.key,done,false)).join('')}
+        </div>
+      </div>`;
+  }).join('');
+
+  el.querySelectorAll('.accordion-head').forEach(h => {
+    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+  });
+  el.querySelectorAll('.step').forEach(stepEl => {
+    stepEl.addEventListener('click', () => {
+      const i = parseInt(stepEl.dataset.i);
+      const p = stepEl.dataset.phase;
+      let d = loadDone(p);
+      d = d.includes(i) ? d.filter(x=>x!==i) : [...d, i];
+      saveDone(p, d);
+      renderFullDay();
+      renderPhasePanel();
+    });
+  });
+}
+
+document.getElementById('toggleFullDay').addEventListener('click', () => {
+  const el = document.getElementById('fullDayPanel');
+  const btn = document.getElementById('toggleFullDay');
+  const show = el.hasAttribute('hidden');
+  if(show){ el.removeAttribute('hidden'); renderFullDay(); btn.textContent = "Tagesplan ausblenden"; }
+  else{ el.setAttribute('hidden',''); btn.textContent = "Ganzen Tagesplan zeigen"; }
+});
+
+/* ===================== NAV ===================== */
+document.querySelectorAll('.navbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+/* ===================== SLEEP CSV / CHARTS ===================== */
+let rows = [];
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+  if(lines.length<2) return [];
+  const headers = splitCSVLine(lines[0]);
+  const out = [];
+  for(let i=1;i<lines.length;i++){
+    const vals = splitCSVLine(lines[i]);
+    if(vals.length<2) continue;
+    const obj = {};
+    headers.forEach((h,idx)=> obj[h.trim()] = (vals[idx]||"").trim());
+    out.push(obj);
+  }
+  return out;
+}
+function splitCSVLine(line){
+  const result=[]; let cur=""; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){ inQ=!inQ; }
+    else if(c===',' && !inQ){ result.push(cur); cur=""; }
+    else{ cur+=c; }
+  }
+  result.push(cur);
+  return result;
+}
+function normalizeRow(r){
+  const get=(...keys)=>{ for(const k of keys){ if(r[k]!==undefined) return r[k]; } return ""; };
+  const from=get("From","from"), to=get("To","to");
+  const hours=parseFloat(get("Hours","hours").replace(",","."));
+  const rating=parseFloat(get("Rating","rating").replace(",","."));
+  const snore=parseFloat(get("Snore","snore").replace(",",".")) || 0;
+  return { from, to, hours:isNaN(hours)?null:hours, rating:isNaN(rating)?null:rating, snore };
+}
+function parseTimeToMinutes(s){ const m=s.match(/(\d{1,2}):(\d{2})/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
+function circularDiff(actual,target){ if(actual===null) return null; let d=Math.abs(actual-target); if(d>720) d=1440-d; return d; }
+
+const dropzone=document.getElementById('dropzone'), fileInput=document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=>fileInput.click());
+dropzone.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fileInput.click(); } });
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', ()=>dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e=>{ e.preventDefault(); dropzone.classList.remove('drag'); if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  document.getElementById('parseError').innerHTML="";
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const parsed=parseCSV(e.target.result);
+      if(!parsed.length) throw new Error("Keine Zeilen gefunden");
+      rows=parsed.map(normalizeRow).filter(r=>r.from);
+      if(!rows.length) throw new Error("Keine gültigen Einträge erkannt");
+      document.getElementById('fileBadge').innerHTML=`<div class="file-badge"><span>${file.name} — ${rows.length} Nächte</span><button onclick="clearFile()">entfernen</button></div>`;
+      renderSleepDashboard();
+    }catch(err){
+      document.getElementById('parseError').innerHTML=`<div class="error-box">Konnte die Datei nicht lesen: ${err.message}.</div>`;
+    }
+  };
+  reader.readAsText(file);
+}
+function clearFile(){
+  rows=[];
+  document.getElementById('fileBadge').innerHTML="";
+  document.getElementById('sleepDashboard').style.display="none";
+  document.getElementById('sleepEmpty').style.display="block";
+  document.getElementById('analyzeBtn').disabled=true;
+}
+
+let charts={};
+Chart.defaults.color='#8C8577';
+Chart.defaults.font.family="'Public Sans', sans-serif";
+Chart.defaults.borderColor='#3B362D';
+
+function renderSleepDashboard(){
+  document.getElementById('sleepEmpty').style.display="none";
+  document.getElementById('sleepDashboard').style.display="block";
+  document.getElementById('analyzeBtn').disabled=false;
+
+  const recent=rows.slice(-14);
+  const labels=recent.map(r=>r.from.slice(5,10));
+
+  const validHours=recent.map(r=>r.hours).filter(h=>h!==null);
+  const avgHours=validHours.length?(validHours.reduce((a,b)=>a+b,0)/validHours.length):0;
+  const validRating=recent.map(r=>r.rating).filter(r=>r!==null);
+  const avgRating=validRating.length?(validRating.reduce((a,b)=>a+b,0)/validRating.length):0;
+  const bedDiffs=recent.map(r=>circularDiff(parseTimeToMinutes(r.from),1335)).filter(d=>d!==null);
+  const avgBedDiff=bedDiffs.length?Math.round(bedDiffs.reduce((a,b)=>a+b,0)/bedDiffs.length):0;
+  const wakeDiffs=recent.map(r=>circularDiff(parseTimeToMinutes(r.to),270)).filter(d=>d!==null);
+  const avgWakeDiff=wakeDiffs.length?Math.round(wakeDiffs.reduce((a,b)=>a+b,0)/wakeDiffs.length):0;
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat"><div class="label">Ø Schlafdauer</div><div class="value mono">${avgHours.toFixed(1)}h</div><div class="delta ${avgHours<6.5?'bad':'ok'}">${avgHours<6.5?'unter Ziel':'im Rahmen'}</div></div>
+    <div class="stat"><div class="label">Ø Rating</div><div class="value mono">${avgRating.toFixed(1)}</div></div>
+    <div class="stat"><div class="label">Bettgeh-Abw.</div><div class="value mono">${avgBedDiff}min</div><div class="delta ${avgBedDiff>20?'bad':'ok'}">${avgBedDiff>20?'unregelmäßig':'stabil'}</div></div>
+    <div class="stat"><div class="label">Aufwach-Abw.</div><div class="value mono">${avgWakeDiff}min</div><div class="delta ${avgWakeDiff>20?'bad':'ok'}">${avgWakeDiff>20?'unregelmäßig':'stabil'}</div></div>
+  `;
+
+  Object.values(charts).forEach(c=>c&&c.destroy()); charts={};
+
+  charts.duration=new Chart(document.getElementById('durationChart'),{ type:'line',
+    data:{ labels, datasets:[{ data:recent.map(r=>r.hours), borderColor:'#D96C4B', backgroundColor:'rgba(217,108,75,0.12)', fill:true, tension:0.3 }]},
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ suggestedMin:4, suggestedMax:10, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+
+  charts.bedtime=new Chart(document.getElementById('bedtimeChart'),{ type:'bar',
+    data:{ labels, datasets:[{ data:recent.map(r=>circularDiff(parseTimeToMinutes(r.from),1335)), backgroundColor:'#D96C4B' }]},
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+
+  charts.waketime=new Chart(document.getElementById('waketimeChart'),{ type:'bar',
+    data:{ labels, datasets:[{ data:recent.map(r=>circularDiff(parseTimeToMinutes(r.to),270)), backgroundColor:'#8C8577' }]},
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+
+  charts.rating=new Chart(document.getElementById('ratingChart'),{ type:'line',
+    data:{ labels, datasets:[
+      { label:'Rating', data:recent.map(r=>r.rating), borderColor:'#6FA88C', tension:0.3, yAxisID:'y' },
+      { label:'Snore', data:recent.map(r=>r.snore), borderColor:'#C96A5F', tension:0.3, yAxisID:'y1' }
+    ]},
+    options:{ responsive:true, plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:10}}}},
+      scales:{ y:{ position:'left', grid:{color:'#3B362D'} }, y1:{ position:'right', grid:{display:false} }, x:{ grid:{display:false} } } } });
+}
+
+/* ===================== SETTINGS / API KEY ===================== */
+const apiKeyInput=document.getElementById('apiKey');
+apiKeyInput.value=localStorage.getItem('gemini_api_key')||"";
+document.getElementById('saveKeyBtn').addEventListener('click', ()=>{
+  localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+  const btn=document.getElementById('saveKeyBtn');
+  btn.textContent="Gespeichert";
+  setTimeout(()=>btn.textContent="Speichern",1500);
+});
+
+/* ===================== AI ANALYSIS ===================== */
+document.getElementById('analyzeBtn').addEventListener('click', async ()=>{
+  const key=localStorage.getItem('gemini_api_key');
+  const box=document.getElementById('aiResult');
+  if(!key){
+    box.className="ai-result";
+    box.innerHTML=`<div class="error-box">Kein API Key hinterlegt. Trag ihn in den Einstellungen ein.</div>`;
+    return;
+  }
+  box.className="ai-result";
+  box.innerHTML=`<span class="spinner"></span> Analysiere...`;
+  document.getElementById('analyzeBtn').disabled=true;
+
+  const recent=rows.slice(-14);
+  const summary=recent.map(r=>({ von:r.from, bis:r.to, stunden:r.hours, rating:r.rating, schnarchen:r.snore }));
+  const prompt=`Du bist ein direkter, unaufgeregter Schlaf-Analyst. Hier sind meine Schlafdaten der letzten ${recent.length} Nächte (JSON):
+${JSON.stringify(summary)}
+
+Ziel-Zeitplan: Licht aus 22:15, Aufwachen 04:30 (bewusst kurzer Schlaf für Schule, 4 Zyklen).
+
+Gib mir:
+1. Auffällige Muster (Konsistenz, Trend, Schnarchen)
+2. 2-3 konkrete, direkt umsetzbare Tipps
+
+Keine Floskeln, direkt und ehrlich, auf Deutsch, kurz halten.`;
+
+  try{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ contents:[{ parts:[{ text: prompt }] }] })
+    });
+    if(!res.ok){ const err=await res.json().catch(()=>({})); throw new Error(err?.error?.message || `HTTP ${res.status}`); }
+    const data=await res.json();
+    box.textContent = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Keine Antwort erhalten.";
+  }catch(err){
+    box.innerHTML=`<div class="error-box">Analyse fehlgeschlagen: ${err.message}</div>`;
+  }finally{
+    document.getElementById('analyzeBtn').disabled=false;
+  }
+});
+
+/* ===================== GOOGLE DRIVE ===================== */
+let driveAccessToken = null;
+let driveTokenClient = null;
+
+const driveClientIdInput = document.getElementById('driveClientId');
+driveClientIdInput.value = localStorage.getItem('drive_client_id') || "";
+
+document.getElementById('saveDriveIdBtn').addEventListener('click', () => {
+  localStorage.setItem('drive_client_id', driveClientIdInput.value.trim());
+  const btn = document.getElementById('saveDriveIdBtn');
+  btn.textContent = "Gespeichert";
+  setTimeout(() => btn.textContent = "Speichern", 1500);
+  initDriveTokenClient();
+});
+
+function initDriveTokenClient(){
+  const clientId = localStorage.getItem('drive_client_id');
+  if(!clientId || typeof google === 'undefined' || !google.accounts) return;
+  driveTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: 'https://www.googleapis.com/auth/drive.readonly',
+    callback: (resp) => {
+      if(resp.error){
+        document.getElementById('driveConnectStatus').textContent = "Verbindung fehlgeschlagen: " + resp.error;
+        return;
+      }
+      driveAccessToken = resp.access_token;
+      document.getElementById('driveConnectStatus').textContent = "Verbunden ✓";
+      document.getElementById('driveLoadBtn').disabled = false;
+      document.getElementById('driveStatus').textContent = "Verbunden — bereit zum Laden";
+    }
+  });
+}
+
+document.getElementById('driveConnectBtn').addEventListener('click', () => {
+  if(!localStorage.getItem('drive_client_id')){
+    document.getElementById('driveConnectStatus').textContent = "Erst Client ID speichern";
+    return;
+  }
+  if(!driveTokenClient) initDriveTokenClient();
+  if(driveTokenClient) driveTokenClient.requestAccessToken();
+});
+
+async function driveLoadLatest(){
+  const statusEl = document.getElementById('driveStatus');
+  if(!driveAccessToken){
+    statusEl.textContent = "Nicht verbunden — in den Einstellungen verbinden";
+    return;
+  }
+  statusEl.textContent = "Suche neueste Datei...";
+  try{
+    const q = encodeURIComponent("name contains 'sleep-export' and trashed = false");
+    const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=1&fields=files(id,name,modifiedTime)`, {
+      headers: { Authorization: `Bearer ${driveAccessToken}` }
+    });
+    if(!listRes.ok) throw new Error(`Suche fehlgeschlagen (HTTP ${listRes.status})`);
+    const listData = await listRes.json();
+    if(!listData.files || !listData.files.length) throw new Error("Keine sleep-export Datei in Drive gefunden");
+    const file = listData.files[0];
+    statusEl.textContent = `Lade ${file.name}...`;
+    const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+      headers: { Authorization: `Bearer ${driveAccessToken}` }
+    });
+    if(!fileRes.ok) throw new Error(`Download fehlgeschlagen (HTTP ${fileRes.status})`);
+    const text = await fileRes.text();
+    const parsed = parseCSV(text);
+    if(!parsed.length) throw new Error("Datei leer oder unlesbar");
+    rows = parsed.map(normalizeRow).filter(r => r.from);
+    document.getElementById('fileBadge').innerHTML = `<div class="file-badge"><span>${file.name} (Drive, ${new Date(file.modifiedTime).toLocaleDateString('de-AT')}) — ${rows.length} Nächte</span><button onclick="clearFile()">entfernen</button></div>`;
+    renderSleepDashboard();
+    statusEl.textContent = "Geladen ✓";
+  }catch(err){
+    statusEl.textContent = "Fehler: " + err.message;
+  }
+}
+document.getElementById('driveLoadBtn').addEventListener('click', driveLoadLatest);
+
+/* ===================== INIT ===================== */
+buildDial();
+renderPhasePanel();
+setInterval(renderPhasePanel, 30000);
+window.addEventListener('load', () => setTimeout(initDriveTokenClient, 300));
+</script>
+</body>
+</html>
