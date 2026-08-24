@@ -591,6 +591,9 @@ function normalizeRow(r){
 }
 function parseTimeToMinutes(s){ const m=s.match(/(\d{1,2}):(\d{2})/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
 function circularDiff(actual,target){ if(actual===null) return null; let d=Math.abs(actual-target); if(d>720) d=1440-d; return d; }
+function minutesToClock(m){ m=((Math.round(m)%1440)+1440)%1440; const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+// Shifts early-morning bedtimes (e.g. 00:10) onto a continuous evening scale (24:10) so the chart doesn't jump/wrap visually
+function bedtimeContinuous(mins){ if(mins===null) return null; return mins<720 ? mins+1440 : mins; }
 
 const dropzone=document.getElementById('dropzone'), fileInput=document.getElementById('fileInput');
 dropzone.addEventListener('click', ()=>fileInput.click());
@@ -657,13 +660,25 @@ function renderSleepDashboard(){
     data:{ labels, datasets:[{ data:recent.map(r=>r.hours), borderColor:'#D96C4B', backgroundColor:'rgba(217,108,75,0.12)', fill:true, tension:0.3 }]},
     options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ suggestedMin:4, suggestedMax:10, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 
-  charts.bedtime=new Chart(document.getElementById('bedtimeChart'),{ type:'bar',
-    data:{ labels, datasets:[{ data:recent.map(r=>circularDiff(parseTimeToMinutes(r.from),1335)), backgroundColor:'#D96C4B' }]},
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+  const BED_TARGET=1335, WAKE_TARGET=270; // 22:15, 04:30
+  const bedTimes=recent.map(r=>bedtimeContinuous(parseTimeToMinutes(r.from)));
+  const wakeTimes=recent.map(r=>parseTimeToMinutes(r.to));
 
-  charts.waketime=new Chart(document.getElementById('waketimeChart'),{ type:'bar',
-    data:{ labels, datasets:[{ data:recent.map(r=>circularDiff(parseTimeToMinutes(r.to),270)), backgroundColor:'#8C8577' }]},
-    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{ y:{ grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+  charts.bedtime=new Chart(document.getElementById('bedtimeChart'),{
+    data:{ labels, datasets:[
+      { type:'bar', data:bedTimes, backgroundColor:'#D96C4B', order:2 },
+      { type:'line', data:labels.map(()=>BED_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
+    ]},
+    options:{ responsive:true, plugins:{legend:{display:false}},
+      scales:{ y:{ suggestedMin:1230, suggestedMax:1560, ticks:{ stepSize:60, callback:v=>minutesToClock(v) }, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+
+  charts.waketime=new Chart(document.getElementById('waketimeChart'),{
+    data:{ labels, datasets:[
+      { type:'bar', data:wakeTimes, backgroundColor:'#8C8577', order:2 },
+      { type:'line', data:labels.map(()=>WAKE_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
+    ]},
+    options:{ responsive:true, plugins:{legend:{display:false}},
+      scales:{ y:{ suggestedMin:0, suggestedMax:600, ticks:{ stepSize:60, callback:v=>minutesToClock(v) }, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 
   charts.rating=new Chart(document.getElementById('ratingChart'),{ type:'line',
     data:{ labels, datasets:[
