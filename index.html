@@ -257,7 +257,8 @@
       <div class="panel"><div class="panel-head"><h2>Schlafdauer</h2></div><canvas id="durationChart"></canvas></div>
       <div class="panel"><div class="panel-head"><h2>Bettgeh-Konsistenz <span class="mono" style="font-size:0.68rem;color:var(--text-dim);font-weight:400">Ziel 22:15</span></h2></div><canvas id="bedtimeChart"></canvas></div>
       <div class="panel"><div class="panel-head"><h2>Aufwach-Konsistenz <span class="mono" style="font-size:0.68rem;color:var(--text-dim);font-weight:400">Ziel 04:30</span></h2></div><canvas id="waketimeChart"></canvas></div>
-      <div class="panel"><div class="panel-head"><h2>Rating &amp; Schnarchen</h2></div><canvas id="ratingChart"></canvas></div>
+      <div class="panel"><div class="panel-head"><h2>Schnarchen</h2></div><canvas id="ratingChart"></canvas></div>
+      <div class="panel"><div class="panel-head"><h2>Schlafzyklen</h2></div><canvas id="cyclesChart"></canvas></div>
     </div>
 
     <div class="panel" id="sleepEmpty">
@@ -584,7 +585,8 @@ function normalizeRow(r){
   const hours=parseFloat(get("Hours","hours").replace(",","."));
   const rating=parseFloat(get("Rating","rating").replace(",","."));
   const snore=parseFloat(get("Snore","snore").replace(",",".")) || 0;
-  return { from, to, hours:isNaN(hours)?null:hours, rating:isNaN(rating)?null:rating, snore };
+  const cycles=parseFloat(get("Cycles","cycles").replace(",","."));
+  return { from, to, hours:isNaN(hours)?null:hours, rating:isNaN(rating)?null:rating, snore, cycles:isNaN(cycles)?null:cycles };
 }
 function parseTimeToMinutes(s){ const m=s.match(/(\d{1,2}):(\d{2})/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
 function circularDiff(actual,target){ if(actual===null) return null; let d=Math.abs(actual-target); if(d>720) d=1440-d; return d; }
@@ -637,8 +639,6 @@ function renderSleepDashboard(){
 
   const validHours=recent.map(r=>r.hours).filter(h=>h!==null);
   const avgHours=validHours.length?(validHours.reduce((a,b)=>a+b,0)/validHours.length):0;
-  const validRating=recent.map(r=>r.rating).filter(r=>r!==null);
-  const avgRating=validRating.length?(validRating.reduce((a,b)=>a+b,0)/validRating.length):0;
   const bedDiffs=recent.map(r=>circularDiff(parseTimeToMinutes(r.from),1335)).filter(d=>d!==null);
   const avgBedDiff=bedDiffs.length?Math.round(bedDiffs.reduce((a,b)=>a+b,0)/bedDiffs.length):0;
   const wakeDiffs=recent.map(r=>circularDiff(parseTimeToMinutes(r.to),270)).filter(d=>d!==null);
@@ -646,7 +646,6 @@ function renderSleepDashboard(){
 
   document.getElementById('statsGrid').innerHTML=`
     <div class="stat"><div class="label">Ø Schlafdauer</div><div class="value mono">${avgHours.toFixed(1)}h</div><div class="delta ${avgHours<6.5?'bad':'ok'}">${avgHours<6.5?'unter Ziel':'im Rahmen'}</div></div>
-    <div class="stat"><div class="label">Ø Rating</div><div class="value mono">${avgRating.toFixed(1)}</div></div>
     <div class="stat"><div class="label">Bettgeh-Abw.</div><div class="value mono">${avgBedDiff}min</div><div class="delta ${avgBedDiff>20?'bad':'ok'}">${avgBedDiff>20?'unregelmäßig':'stabil'}</div></div>
     <div class="stat"><div class="label">Aufwach-Abw.</div><div class="value mono">${avgWakeDiff}min</div><div class="delta ${avgWakeDiff>20?'bad':'ok'}">${avgWakeDiff>20?'unregelmäßig':'stabil'}</div></div>
   `;
@@ -667,11 +666,15 @@ function renderSleepDashboard(){
 
   charts.rating=new Chart(document.getElementById('ratingChart'),{ type:'line',
     data:{ labels, datasets:[
-      { label:'Rating', data:recent.map(r=>r.rating), borderColor:'#6FA88C', tension:0.3, yAxisID:'y' },
-      { label:'Snore', data:recent.map(r=>r.snore), borderColor:'#C96A5F', tension:0.3, yAxisID:'y1' }
+      { label:'Schnarchen', data:recent.map(r=>r.snore), borderColor:'#C96A5F', backgroundColor:'rgba(201,106,95,0.12)', fill:true, tension:0.3 }
     ]},
-    options:{ responsive:true, plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:10}}}},
-      scales:{ y:{ position:'left', grid:{color:'#3B362D'} }, y1:{ position:'right', grid:{display:false} }, x:{ grid:{display:false} } } } });
+    options:{ responsive:true, plugins:{legend:{display:false}},
+      scales:{ y:{ grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+
+  charts.cycles=new Chart(document.getElementById('cyclesChart'),{ type:'bar',
+    data:{ labels, datasets:[{ data:recent.map(r=>r.cycles), backgroundColor:'#D9A24B' }]},
+    options:{ responsive:true, plugins:{legend:{display:false}},
+      scales:{ y:{ suggestedMin:0, suggestedMax:6, ticks:{stepSize:1}, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 }
 
 /* ===================== SETTINGS / API KEY ===================== */
