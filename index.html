@@ -666,18 +666,22 @@ function renderSleepDashboard(){
 
   charts.bedtime=new Chart(document.getElementById('bedtimeChart'),{
     data:{ labels, datasets:[
-      { type:'bar', data:bedTimes, backgroundColor:'#D96C4B', order:2 },
-      { type:'line', data:labels.map(()=>BED_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
+      { label:'Bettzeit', type:'bar', data:bedTimes, backgroundColor:'#D96C4B', order:2 },
+      { label:'Ziel', type:'line', data:labels.map(()=>BED_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
     ]},
-    options:{ responsive:true, plugins:{legend:{display:false}},
-      scales:{ y:{ suggestedMin:1230, suggestedMax:1560, ticks:{ stepSize:60, callback:v=>minutesToClock(v) }, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+    options:{ responsive:true,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:ctx=>`${ctx.dataset.label}: ${minutesToClock(ctx.parsed.y)}` } } },
+      scales:{ y:{ min:1200, max:1680, ticks:{ stepSize:60, callback:v=>minutesToClock(v) }, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 
   charts.waketime=new Chart(document.getElementById('waketimeChart'),{
     data:{ labels, datasets:[
-      { type:'bar', data:wakeTimes, backgroundColor:'#8C8577', order:2 },
-      { type:'line', data:labels.map(()=>WAKE_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
+      { label:'Aufwachzeit', type:'bar', data:wakeTimes, backgroundColor:'#8C8577', order:2 },
+      { label:'Ziel', type:'line', data:labels.map(()=>WAKE_TARGET), borderColor:'#EDE7DB', borderDash:[5,4], borderWidth:1.5, pointRadius:0, fill:false, order:1 }
     ]},
-    options:{ responsive:true, plugins:{legend:{display:false}},
+    options:{ responsive:true,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:ctx=>`${ctx.dataset.label}: ${minutesToClock(ctx.parsed.y)}` } } },
       scales:{ y:{ suggestedMin:0, suggestedMax:600, ticks:{ stepSize:60, callback:v=>minutesToClock(v) }, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 
   charts.rating=new Chart(document.getElementById('ratingChart'),{ type:'line',
