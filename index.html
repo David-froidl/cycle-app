@@ -585,8 +585,9 @@ function normalizeRow(r){
   const hours=parseFloat(get("Hours","hours").replace(",","."));
   const rating=parseFloat(get("Rating","rating").replace(",","."));
   const snore=parseFloat(get("Snore","snore").replace(",",".")) || 0;
-  const cycles=parseFloat(get("Cycles","cycles").replace(",","."));
-  return { from, to, hours:isNaN(hours)?null:hours, rating:isNaN(rating)?null:rating, snore, cycles:isNaN(cycles)?null:cycles };
+  const cyclesRaw=parseFloat(get("Cycles","cycles").replace(",","."));
+  const cycles=(isNaN(cyclesRaw)||cyclesRaw<0)?null:cyclesRaw;
+  return { from, to, hours:isNaN(hours)?null:hours, rating:isNaN(rating)?null:rating, snore, cycles };
 }
 function parseTimeToMinutes(s){ const m=s.match(/(\d{1,2}):(\d{2})/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
 function circularDiff(actual,target){ if(actual===null) return null; let d=Math.abs(actual-target); if(d>720) d=1440-d; return d; }
@@ -674,7 +675,7 @@ function renderSleepDashboard(){
   charts.cycles=new Chart(document.getElementById('cyclesChart'),{ type:'bar',
     data:{ labels, datasets:[{ data:recent.map(r=>r.cycles), backgroundColor:'#D9A24B' }]},
     options:{ responsive:true, plugins:{legend:{display:false}},
-      scales:{ y:{ suggestedMin:0, suggestedMax:6, ticks:{stepSize:1}, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
+      scales:{ y:{ suggestedMin:0, ticks:{stepSize:1}, grid:{color:'#3B362D'} }, x:{ grid:{display:false} } } } });
 }
 
 /* ===================== SETTINGS / API KEY ===================== */
@@ -701,7 +702,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async ()=>{
   document.getElementById('analyzeBtn').disabled=true;
 
   const recent=rows.slice(-14);
-  const summary=recent.map(r=>({ von:r.from, bis:r.to, stunden:r.hours, rating:r.rating, schnarchen:r.snore }));
+  const summary=recent.map(r=>({ von:r.from, bis:r.to, stunden:r.hours, zyklen:r.cycles, schnarchen:r.snore }));
   const prompt=`Du bist ein direkter, unaufgeregter Schlaf-Analyst. Hier sind meine Schlafdaten der letzten ${recent.length} Nächte (JSON):
 ${JSON.stringify(summary)}
 
