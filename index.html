@@ -525,39 +525,58 @@ document.querySelectorAll('.navbtn').forEach(btn => {
 
 /* ===================== SLEEP CSV / CHARTS ===================== */
 let rows = [];
-function detectDelimiter(headerLine){
-  const commaCount = (headerLine.match(/,/g)||[]).length;
-  const semiCount = (headerLine.match(/;/g)||[]).length;
+function detectDelimiter(sampleLine){
+  const commaCount = (sampleLine.match(/,/g)||[]).length;
+  const semiCount = (sampleLine.match(/;/g)||[]).length;
   return semiCount > commaCount ? ';' : ',';
 }
+// Proper RFC4180-style tokenizer: respects quotes (including embedded newlines inside quoted fields)
+function tokenizeCSV(text, delim){
+  const allRows = [];
+  let field = '';
+  let row = [];
+  let inQuotes = false;
+  for(let i=0;i<text.length;i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === delim){ row.push(field); field = ''; }
+      else if(c === '\r'){ /* skip, handled by \n */ }
+      else if(c === '\n'){ row.push(field); field = ''; allRows.push(row); row = []; }
+      else { field += c; }
+    }
+  }
+  if(field.length || row.length){ row.push(field); allRows.push(row); }
+  return allRows;
+}
 function parseCSV(text){
-  const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
-  if(lines.length<2) return [];
-  const delim = detectDelimiter(lines[0]);
-  const headerLine = lines[0].trim();
-  const headers = splitCSVLine(lines[0], delim);
+  const firstLine = text.split(/\r?\n/)[0] || '';
+  const delim = detectDelimiter(firstLine);
+  const allRows = tokenizeCSV(text, delim);
+  if(!allRows.length) return [];
+
+  let headers = null;
   const out = [];
-  for(let i=1;i<lines.length;i++){
-    if(lines[i].trim() === headerLine) continue; // skip re-embedded header rows
-    const vals = splitCSVLine(lines[i], delim);
-    if(vals.length<2) continue;
+  for(const r of allRows){
+    if(!r.length) continue;
+    const firstCell = (r[0]||'').trim();
+    if(firstCell.toLowerCase() === 'id'){
+      headers = r.map(h => h.trim());
+      continue; // this is a (possibly re-embedded) header row, not data
+    }
+    if(!headers) continue; // stray row before any header seen
     const obj = {};
-    headers.forEach((h,idx)=> obj[h.trim()] = (vals[idx]||"").trim());
+    headers.forEach((h,idx) => obj[h] = (r[idx]||'').trim());
     out.push(obj);
   }
   return out;
-}
-function splitCSVLine(line, delim){
-  delim = delim || ',';
-  const result=[]; let cur=""; let inQ=false;
-  for(let i=0;i<line.length;i++){
-    const c=line[i];
-    if(c==='"'){ inQ=!inQ; }
-    else if(c===delim && !inQ){ result.push(cur); cur=""; }
-    else{ cur+=c; }
-  }
-  result.push(cur);
-  return result;
 }
 function normalizeRow(r){
   const get=(...keys)=>{ for(const k of keys){ if(r[k]!==undefined) return r[k]; } return ""; };
@@ -585,7 +604,7 @@ function handleFile(file){
     try{
       const parsed=parseCSV(e.target.result);
       if(!parsed.length) throw new Error("Keine Zeilen gefunden");
-      rows=parsed.map(normalizeRow).filter(r=>r.from);
+      rows=parsed.map(normalizeRow).filter(r=>r.from && (r.hours===null || r.hours>=0.5));
       if(!rows.length) throw new Error("Keine gültigen Einträge erkannt");
       document.getElementById('fileBadge').innerHTML=`<div class="file-badge"><span>${file.name} — ${rows.length} Nächte</span><button onclick="clearFile()">entfernen</button></div>`;
       renderSleepDashboard();
@@ -845,7 +864,7 @@ async function driveLoadLatest(){
 
     const parsed = parseCSV(text);
     if(!parsed.length) throw new Error("Datei leer oder unlesbar");
-    rows = parsed.map(normalizeRow).filter(r => r.from);
+    rows = parsed.map(normalizeRow).filter(r => r.from && (r.hours===null || r.hours>=0.5));
     document.getElementById('fileBadge').innerHTML = `<div class="file-badge"><span>${file.name} (Drive, ${new Date(file.modifiedTime).toLocaleDateString('de-AT')}) — ${rows.length} Nächte</span><button onclick="clearFile()">entfernen</button></div>`;
     renderSleepDashboard();
     statusEl.textContent = "Geladen ✓";
