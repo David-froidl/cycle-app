@@ -534,9 +534,11 @@ function parseCSV(text){
   const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
   if(lines.length<2) return [];
   const delim = detectDelimiter(lines[0]);
+  const headerLine = lines[0].trim();
   const headers = splitCSVLine(lines[0], delim);
   const out = [];
   for(let i=1;i<lines.length;i++){
+    if(lines[i].trim() === headerLine) continue; // skip re-embedded header rows
     const vals = splitCSVLine(lines[i], delim);
     if(vals.length<2) continue;
     const obj = {};
