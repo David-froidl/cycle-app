@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
@@ -698,9 +697,8 @@ Keine Floskeln, direkt und ehrlich, auf Deutsch, kurz halten.`;
   }
 });
 
-/* ===================== GOOGLE DRIVE ===================== */
-let driveAccessToken = null;
-let driveTokenClient = null;
+/* ===================== GOOGLE DRIVE (persistent, backend-assisted) ===================== */
+const REDIRECT_URI = window.location.origin + window.location.pathname;
 
 const driveClientIdInput = document.getElementById('driveClientId');
 driveClientIdInput.value = localStorage.getItem('drive_client_id') || "";
@@ -710,48 +708,104 @@ document.getElementById('saveDriveIdBtn').addEventListener('click', () => {
   const btn = document.getElementById('saveDriveIdBtn');
   btn.textContent = "Gespeichert";
   setTimeout(() => btn.textContent = "Speichern", 1500);
-  initDriveTokenClient();
+  updateDriveConnectStatus();
 });
 
-function initDriveTokenClient(){
-  const clientId = localStorage.getItem('drive_client_id');
-  if(!clientId || typeof google === 'undefined' || !google.accounts) return;
-  driveTokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: 'https://www.googleapis.com/auth/drive.readonly',
-    callback: (resp) => {
-      if(resp.error){
-        document.getElementById('driveConnectStatus').textContent = "Verbindung fehlgeschlagen: " + resp.error;
-        return;
-      }
-      driveAccessToken = resp.access_token;
-      document.getElementById('driveConnectStatus').textContent = "Verbunden ✓";
-      document.getElementById('driveLoadBtn').disabled = false;
-      document.getElementById('driveStatus').textContent = "Verbunden — bereit zum Laden";
-    }
-  });
+function updateDriveConnectStatus(){
+  const hasRefresh = !!localStorage.getItem('drive_refresh_token');
+  const statusEl = document.getElementById('driveConnectStatus');
+  const loadBtn = document.getElementById('driveLoadBtn');
+  const driveStatusEl = document.getElementById('driveStatus');
+  if(hasRefresh){
+    statusEl.textContent = "Verbunden ✓ (dauerhaft)";
+    loadBtn.disabled = false;
+    driveStatusEl.textContent = "Verbunden — bereit zum Laden";
+  } else {
+    statusEl.textContent = "";
+    loadBtn.disabled = true;
+  }
 }
 
 document.getElementById('driveConnectBtn').addEventListener('click', () => {
-  if(!localStorage.getItem('drive_client_id')){
+  const clientId = localStorage.getItem('drive_client_id');
+  if(!clientId){
     document.getElementById('driveConnectStatus').textContent = "Erst Client ID speichern";
     return;
   }
-  if(!driveTokenClient) initDriveTokenClient();
-  if(driveTokenClient) driveTokenClient.requestAccessToken();
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.readonly');
+  authUrl.searchParams.set('access_type', 'offline');
+  authUrl.searchParams.set('prompt', 'consent');
+  window.location.href = authUrl.toString();
 });
+
+async function handleOAuthRedirect(){
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
+  if(!code) return;
+
+  const clientId = localStorage.getItem('drive_client_id');
+  window.history.replaceState({}, document.title, window.location.pathname);
+  if(!clientId) return;
+
+  try{
+    const res = await fetch('/api/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, client_id: clientId, redirect_uri: REDIRECT_URI })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Austausch fehlgeschlagen');
+
+    localStorage.setItem('drive_access_token', data.access_token);
+    localStorage.setItem('drive_access_token_expiry', String(Date.now() + (data.expires_in * 1000) - 60000));
+    if(data.refresh_token){
+      localStorage.setItem('drive_refresh_token', data.refresh_token);
+    }
+    updateDriveConnectStatus();
+  }catch(err){
+    document.getElementById('driveConnectStatus').textContent = "Fehler: " + err.message;
+  }
+}
+
+async function getValidAccessToken(){
+  const expiry = parseInt(localStorage.getItem('drive_access_token_expiry') || '0', 10);
+  const cached = localStorage.getItem('drive_access_token');
+  if(cached && Date.now() < expiry) return cached;
+
+  const refreshToken = localStorage.getItem('drive_refresh_token');
+  const clientId = localStorage.getItem('drive_client_id');
+  if(!refreshToken || !clientId) return null;
+
+  const res = await fetch('/api/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken, client_id: clientId })
+  });
+  const data = await res.json();
+  if(!res.ok) throw new Error(data.error || 'Token-Erneuerung fehlgeschlagen');
+
+  localStorage.setItem('drive_access_token', data.access_token);
+  localStorage.setItem('drive_access_token_expiry', String(Date.now() + (data.expires_in * 1000) - 60000));
+  return data.access_token;
+}
 
 async function driveLoadLatest(){
   const statusEl = document.getElementById('driveStatus');
-  if(!driveAccessToken){
-    statusEl.textContent = "Nicht verbunden — in den Einstellungen verbinden";
-    return;
-  }
-  statusEl.textContent = "Suche neueste Datei...";
+  statusEl.textContent = "Verbinde...";
   try{
+    const token = await getValidAccessToken();
+    if(!token){
+      statusEl.textContent = "Nicht verbunden — in den Einstellungen verbinden";
+      return;
+    }
+    statusEl.textContent = "Suche neueste Datei...";
     const q = encodeURIComponent("name contains 'Sleep as Android' and trashed = false");
     const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&orderBy=modifiedTime desc&pageSize=5&fields=files(id,name,modifiedTime,mimeType)`, {
-      headers: { Authorization: `Bearer ${driveAccessToken}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
     if(!listRes.ok) throw new Error(`Suche fehlgeschlagen (HTTP ${listRes.status})`);
     const listData = await listRes.json();
@@ -760,7 +814,7 @@ async function driveLoadLatest(){
     const file = listData.files.find(f => f.mimeType !== 'application/vnd.google-apps.folder') || listData.files[0];
     statusEl.textContent = `Lade ${file.name}...`;
     const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
-      headers: { Authorization: `Bearer ${driveAccessToken}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
     if(!fileRes.ok) throw new Error(`Download fehlgeschlagen (HTTP ${fileRes.status})`);
     const buffer = await fileRes.arrayBuffer();
@@ -796,7 +850,8 @@ document.getElementById('driveLoadBtn').addEventListener('click', driveLoadLates
 buildDial();
 renderPhasePanel();
 setInterval(renderPhasePanel, 30000);
-window.addEventListener('load', () => setTimeout(initDriveTokenClient, 300));
+updateDriveConnectStatus();
+handleOAuthRedirect();
 </script>
 </body>
 </html>
