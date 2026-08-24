@@ -525,13 +525,19 @@ document.querySelectorAll('.navbtn').forEach(btn => {
 
 /* ===================== SLEEP CSV / CHARTS ===================== */
 let rows = [];
+function detectDelimiter(headerLine){
+  const commaCount = (headerLine.match(/,/g)||[]).length;
+  const semiCount = (headerLine.match(/;/g)||[]).length;
+  return semiCount > commaCount ? ';' : ',';
+}
 function parseCSV(text){
   const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
   if(lines.length<2) return [];
-  const headers = splitCSVLine(lines[0]);
+  const delim = detectDelimiter(lines[0]);
+  const headers = splitCSVLine(lines[0], delim);
   const out = [];
   for(let i=1;i<lines.length;i++){
-    const vals = splitCSVLine(lines[i]);
+    const vals = splitCSVLine(lines[i], delim);
     if(vals.length<2) continue;
     const obj = {};
     headers.forEach((h,idx)=> obj[h.trim()] = (vals[idx]||"").trim());
@@ -539,12 +545,13 @@ function parseCSV(text){
   }
   return out;
 }
-function splitCSVLine(line){
+function splitCSVLine(line, delim){
+  delim = delim || ',';
   const result=[]; let cur=""; let inQ=false;
   for(let i=0;i<line.length;i++){
     const c=line[i];
     if(c==='"'){ inQ=!inQ; }
-    else if(c===',' && !inQ){ result.push(cur); cur=""; }
+    else if(c===delim && !inQ){ result.push(cur); cur=""; }
     else{ cur+=c; }
   }
   result.push(cur);
@@ -605,7 +612,7 @@ function renderSleepDashboard(){
   document.getElementById('analyzeBtn').disabled=false;
 
   const recent=rows.slice(-14);
-  const labels=recent.map(r=>r.from.slice(5,10));
+  const labels=recent.map(r=>(r.from.split(/\s+/)[0])||r.from);
 
   const validHours=recent.map(r=>r.hours).filter(h=>h!==null);
   const avgHours=validHours.length?(validHours.reduce((a,b)=>a+b,0)/validHours.length):0;
