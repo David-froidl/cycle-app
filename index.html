@@ -638,7 +638,7 @@ function renderSleepDashboard(){
   document.getElementById('sleepDashboard').style.display="block";
   document.getElementById('analyzeBtn').disabled=false;
 
-  const recent=rows.slice(-14);
+  const recent=rows.slice(0,14).reverse(); // rows[0] = newest night; take most recent 14, then order oldest→newest for the charts
   const labels=recent.map(r=>(r.from.split(/\s+/)[0])||r.from);
 
   const validHours=recent.map(r=>r.hours).filter(h=>h!==null);
@@ -720,7 +720,7 @@ document.getElementById('analyzeBtn').addEventListener('click', async ()=>{
   box.innerHTML=`<span class="spinner"></span> Analysiere...`;
   document.getElementById('analyzeBtn').disabled=true;
 
-  const recent=rows.slice(-14);
+  const recent=rows.slice(0,14).reverse();
   const summary=recent.map(r=>({ von:r.from, bis:r.to, stunden:r.hours, zyklen:r.cycles, schnarchen:r.snore }));
   const prompt=`Du bist ein direkter, unaufgeregter Schlaf-Analyst. Hier sind meine Schlafdaten der letzten ${recent.length} Nächte (JSON):
 ${JSON.stringify(summary)}
