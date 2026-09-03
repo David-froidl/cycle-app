@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #17181a;
+  --surface: #1e2023;
+  --surface-2: #24262a;
+  --line: #34363b;
+  --text: #e7e5e0;
+  --text-dim: #979aa0;
+  --text-faint: #63666d;
+  --accent: #b3915e;
+  --accent-soft: rgba(179, 145, 94, 0.14);
+  --danger: #b9695f;
+  --danger-soft: rgba(185, 105, 95, 0.14);
+  --ok: #71a087;
+  --ok-soft: rgba(113, 160, 135, 0.14);
+  --radius: 10px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --font-sans: var(--font-inter);
+  --radius-md: var(--radius);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 1.5px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
