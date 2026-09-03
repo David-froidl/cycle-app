@@ -1,19 +1,20 @@
 import type { DayTimetable, TimetableLesson } from "@/lib/types";
 import type { TodayLearningItem } from "@/lib/learningPlan";
+import { Tag } from "@/components/Tag";
 
 function LessonRow({ lesson }: { lesson: TimetableLesson }) {
   return (
     <li
-      className={`flex items-baseline justify-between gap-3 py-2.5 ${
+      className={`flex items-baseline justify-between gap-3 py-3 ${
         lesson.cancelled ? "opacity-50" : ""
       }`}
     >
       <div className="flex items-baseline gap-3">
-        <span className="w-11 shrink-0 text-xs tabular-nums text-text-faint">
+        <span className="w-11 shrink-0 text-xs tabular-nums text-text-dim">
           {lesson.startTime}
         </span>
         <div>
-          <p className={`text-sm ${lesson.cancelled ? "line-through" : "text-text"}`}>
+          <p className={`text-sm ${lesson.cancelled ? "text-text-dim line-through" : "text-text"}`}>
             {lesson.subject}
           </p>
           <p className="text-xs text-text-dim">
@@ -28,16 +29,8 @@ function LessonRow({ lesson }: { lesson: TimetableLesson }) {
           </p>
         </div>
       </div>
-      {lesson.cancelled && (
-        <span className="shrink-0 rounded-full bg-danger-soft px-2 py-0.5 text-[0.7rem] font-medium text-danger">
-          Entfall
-        </span>
-      )}
-      {!lesson.cancelled && lesson.roomChanged && (
-        <span className="shrink-0 rounded-full bg-accent-soft px-2 py-0.5 text-[0.7rem] font-medium text-accent">
-          Raum geändert
-        </span>
-      )}
+      {lesson.cancelled && <Tag tone="danger">Entfall</Tag>}
+      {!lesson.cancelled && lesson.roomChanged && <Tag tone="accent">Raum geändert</Tag>}
     </li>
   );
 }
@@ -51,7 +44,7 @@ export function TimetableCard({
 }) {
   if (!day || day.lessons.length === 0) {
     return (
-      <section className="rounded-md border border-line bg-surface p-4">
+      <section className="border border-line bg-surface p-5">
         <h2 className="text-sm font-medium text-text">Stundenplan</h2>
         <p className="mt-2 text-sm text-text-dim">
           Heute stehen keine Stunden im Plan.
@@ -61,14 +54,10 @@ export function TimetableCard({
   }
 
   return (
-    <section className="rounded-md border border-line bg-surface p-4">
+    <section className="border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-text">Stundenplan heute</h2>
-        {day.isLongDay && (
-          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[0.7rem] text-text-dim">
-            Langer Schultag · {day.lessonCount} Stunden
-          </span>
-        )}
+        {day.isLongDay && <Tag>Langer Schultag · {day.lessonCount} Stunden</Tag>}
       </div>
       <ul className="mt-1 divide-y divide-line">
         {day.lessons.map((lesson) => (
@@ -76,7 +65,7 @@ export function TimetableCard({
         ))}
       </ul>
       {day.freePeriods.length > 0 && (
-        <div className="mt-3 space-y-1.5 border-t border-line pt-3">
+        <div className="mt-4 space-y-1.5 border-t border-line pt-4">
           {day.freePeriods.map((fp) => (
             <p key={fp.afterIndex} className="text-xs text-text-dim">
               Freistunde {fp.startTime}–{fp.endTime}

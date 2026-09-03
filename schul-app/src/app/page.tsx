@@ -41,20 +41,20 @@ export default async function MorningPage() {
   const nextSchoolDay = days.find((d) => d.date > today && d.lessons.some((l) => !l.cancelled));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-10">
       <TodayLearningCard items={todayLearningItems} fallbackEntry={latestEvening} />
 
       {!isUntisConfigured() && (
-        <p className="rounded-md border border-line bg-surface p-4 text-sm text-text-dim">
+        <p className="border border-line bg-surface p-5 text-sm text-text-dim">
           WebUntis ist noch nicht eingerichtet.{" "}
-          <Link href="/einstellungen" className="text-accent underline underline-offset-2">
+          <Link href="/einstellungen" className="text-accent underline underline-offset-4">
             Zugangsdaten hinterlegen
           </Link>
           .
         </p>
       )}
       {timetableError && (
-        <p className="rounded-md border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
+        <p className="border border-danger/40 p-5 text-sm text-danger">
           Stundenplan konnte nicht geladen werden: {timetableError}
         </p>
       )}

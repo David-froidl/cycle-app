@@ -14,7 +14,7 @@ export function AssignmentsList({
   const done = sorted.filter((a) => a.done);
 
   return (
-    <div className="rounded-md border border-line bg-surface p-4">
+    <div className="border border-line bg-surface p-5">
       {open.length === 0 ? (
         <p className="py-2 text-sm text-text-dim">Nichts offen.</p>
       ) : (
@@ -30,8 +30,8 @@ export function AssignmentsList({
       )}
 
       {done.length > 0 && (
-        <details className="mt-3 border-t border-line pt-3">
-          <summary className="cursor-pointer text-xs text-text-dim">
+        <details className="mt-4 border-t border-line pt-4">
+          <summary className="cursor-pointer text-xs text-text-dim hover:text-text">
             Erledigt ({done.length})
           </summary>
           <ul className="mt-2 divide-y divide-line">

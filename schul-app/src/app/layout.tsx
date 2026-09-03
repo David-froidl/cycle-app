@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { NavBar } from "@/components/NavBar";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   title: "Schule",
@@ -16,10 +9,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="de" className={`${inter.variable} h-full`}>
-      <body className="min-h-full">
+    <html lang="de" className="h-full">
+      <body className="min-h-full font-sans">
         <NavBar />
-        <main className="mx-auto max-w-xl px-5 py-6">{children}</main>
+        <main className="mx-auto max-w-xl px-5 py-10">{children}</main>
       </body>
     </html>
   );

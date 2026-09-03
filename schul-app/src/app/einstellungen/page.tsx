@@ -26,8 +26,8 @@ export default async function EinstellungenPage(
     ]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-text">Einstellungen</h1>
+    <div className="space-y-10">
+      <h1 className="text-lg font-medium text-text">Einstellungen</h1>
       <UntisStatusCard configured={untisConfigured} />
       <GraphConnectionCard
         configured={graphConfigured}

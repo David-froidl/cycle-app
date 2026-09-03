@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/assignments";
 import type { AssignmentEntry, LearningPlanStatus } from "@/lib/types";
 import { formatShortDate, isPast } from "@/lib/date";
+import { Tag } from "@/components/Tag";
 
 const STATUS_LABEL: Record<LearningPlanStatus, string> = {
   ready: "Lernplan bereit",
@@ -34,18 +35,14 @@ export function AssignmentRow({
           const done = e.target.checked;
           startTransition(() => toggleAssignmentAction(entry.id, done));
         }}
-        className="mt-0.5 accent-accent"
+        className="mt-1 accent-accent"
       />
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <p className={`text-sm text-text ${entry.done ? "line-through" : ""}`}>
             {entry.title}
           </p>
-          {entry.type === "pruefung" && (
-            <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[0.65rem] text-accent">
-              Prüfung
-            </span>
-          )}
+          {entry.type === "pruefung" && <Tag tone="accent">Prüfung</Tag>}
         </div>
         <p className="text-xs text-text-dim">
           {entry.subject} ·{" "}
@@ -57,7 +54,7 @@ export function AssignmentRow({
         {entry.type === "pruefung" && planStatus && (
           <Link
             href={`/lernplan/${entry.id}`}
-            className="mt-1 inline-block text-xs text-accent underline underline-offset-2"
+            className="mt-1 inline-block text-xs text-accent underline underline-offset-4"
           >
             {STATUS_LABEL[planStatus]}
           </Link>
@@ -66,7 +63,7 @@ export function AssignmentRow({
       <button
         onClick={() => startTransition(() => deleteAssignmentAction(entry.id))}
         disabled={isPending}
-        className="text-xs text-text-faint hover:text-danger"
+        className="text-xs text-text-dim hover:text-danger"
         aria-label="Löschen"
       >
         Löschen

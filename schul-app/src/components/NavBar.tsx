@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Heute" },
@@ -8,22 +11,29 @@ const LINKS = [
 ];
 
 export function NavBar() {
+  const pathname = usePathname();
+
   return (
     <header className="border-b border-line">
-      <div className="mx-auto flex max-w-xl items-center justify-between px-5 py-4">
-        <span className="text-[0.95rem] font-semibold tracking-tight text-text">
-          Schule
-        </span>
-        <nav className="flex gap-1">
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-md px-2.5 py-1.5 text-sm text-text-dim transition-colors hover:bg-surface hover:text-text"
-            >
-              {link.label}
-            </Link>
-          ))}
+      <div className="mx-auto flex max-w-xl items-center justify-between px-5 py-5">
+        <span className="text-sm font-medium text-text">Schule</span>
+        <nav className="flex gap-5">
+          {LINKS.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`border-b pb-0.5 text-sm transition-colors ${
+                  active
+                    ? "border-accent text-accent"
+                    : "border-transparent text-text-dim hover:text-text"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </header>

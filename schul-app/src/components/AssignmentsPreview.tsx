@@ -6,10 +6,10 @@ export function AssignmentsPreview({ items }: { items: AssignmentEntry[] }) {
   const open = items.filter((a) => !a.done).slice(0, 5);
 
   return (
-    <section className="rounded-md border border-line bg-surface p-4">
+    <section className="border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-text">Offene Abgaben</h2>
-        <Link href="/abgaben" className="text-xs text-text-dim underline underline-offset-2">
+        <Link href="/abgaben" className="text-xs text-text-dim underline underline-offset-4 hover:text-text">
           Alle ansehen
         </Link>
       </div>

@@ -18,8 +18,8 @@ export default async function AbgabenPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-lg font-semibold text-text">Abgaben &amp; Prüfungen</h1>
+    <div className="space-y-10">
+      <h1 className="text-lg font-medium text-text">Abgaben &amp; Prüfungen</h1>
       <AssignmentForm />
       <AssignmentsList items={assignments} planStatusByExamId={planStatusByExamId} />
     </div>

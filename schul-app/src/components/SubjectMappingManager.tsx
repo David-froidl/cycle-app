@@ -16,6 +16,9 @@ interface Channel {
   displayName: string;
 }
 
+const FIELD =
+  "border-b border-line bg-transparent px-0 py-1.5 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none";
+
 export function SubjectMappingManager({
   mappings,
   connected,
@@ -78,13 +81,13 @@ export function SubjectMappingManager({
   }
 
   return (
-    <section className="rounded-md border border-line bg-surface p-4">
+    <section className="border border-line bg-surface p-5">
       <h2 className="text-sm font-medium text-text">Fach ↔ Teams-Kanal</h2>
 
       {mappings.length > 0 && (
-        <ul className="mt-3 divide-y divide-line">
+        <ul className="mt-4 divide-y divide-line">
           {mappings.map((m) => (
-            <li key={m.subject} className="flex items-center justify-between py-2">
+            <li key={m.subject} className="flex items-center justify-between py-2.5">
               <div>
                 <p className="text-sm text-text">{m.subject}</p>
                 <p className="text-xs text-text-dim">
@@ -95,7 +98,7 @@ export function SubjectMappingManager({
                 onClick={() =>
                   startTransition(() => removeSubjectMappingAction(m.subject))
                 }
-                className="text-xs text-text-faint hover:text-danger"
+                className="text-xs text-text-dim hover:text-danger"
               >
                 Entfernen
               </button>
@@ -106,17 +109,17 @@ export function SubjectMappingManager({
 
       {loadError && <p className="mt-2 text-xs text-danger">{loadError}</p>}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap items-end gap-4">
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Fach, z. B. Mathematik"
-          className="flex-1 rounded-md border border-line bg-surface-2 px-3 py-1.5 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+          className={`${FIELD} flex-1`}
         />
         <select
           value={teamId}
           onChange={(e) => handleTeamChange(e.target.value)}
-          className="rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none"
+          className={FIELD}
         >
           <option value="">Team wählen…</option>
           {teams.map((t) => (
@@ -129,7 +132,7 @@ export function SubjectMappingManager({
           value={channelId}
           onChange={(e) => setChannelId(e.target.value)}
           disabled={!teamId}
-          className="rounded-md border border-line bg-surface-2 px-2 py-1.5 text-sm text-text focus:border-accent focus:outline-none disabled:opacity-50"
+          className={`${FIELD} disabled:opacity-50`}
         >
           <option value="">Kanal wählen…</option>
           {channels.map((c) => (
@@ -141,7 +144,7 @@ export function SubjectMappingManager({
         <button
           onClick={handleAdd}
           disabled={isPending || !subject || !teamId || !channelId}
-          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-bg disabled:opacity-40"
+          className="bg-accent px-3 py-1.5 text-sm text-bg disabled:opacity-40"
         >
           Zuordnen
         </button>

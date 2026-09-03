@@ -16,11 +16,11 @@ export default async function AbendPage() {
 
   if (!settings.eveningRoutineEnabled) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-lg font-semibold text-text">Abendroutine</h1>
-        <p className="rounded-md border border-line bg-surface p-4 text-sm text-text-dim">
+      <div className="space-y-10">
+        <h1 className="text-lg font-medium text-text">Abendroutine</h1>
+        <p className="border border-line bg-surface p-5 text-sm text-text-dim">
           Die Abendroutine ist ausgeschaltet.{" "}
-          <Link href="/einstellungen" className="text-accent underline underline-offset-2">
+          <Link href="/einstellungen" className="text-accent underline underline-offset-4">
             In den Einstellungen aktivieren
           </Link>
           .
@@ -30,8 +30,8 @@ export default async function AbendPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-lg font-semibold text-text">Abendroutine</h1>
+    <div className="space-y-10">
+      <h1 className="text-lg font-medium text-text">Abendroutine</h1>
       <EveningForm askTomorrowLearning={!activePlan} />
       <EveningHistory entries={entries} />
     </div>

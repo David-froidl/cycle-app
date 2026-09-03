@@ -7,7 +7,7 @@ export function NextDayPreview({ day }: { day: DayTimetable | undefined }) {
   const cancelledCount = day.lessons.length - active.length;
 
   return (
-    <section className="rounded-md border border-line bg-surface/60 p-4">
+    <section className="border-t border-line pt-6">
       <h2 className="text-sm font-medium text-text-dim">
         Nächster Schultag · {formatDayLabel(day.date)}
       </h2>

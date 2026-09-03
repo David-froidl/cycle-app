@@ -1,13 +1,13 @@
 import { createAssignmentAction } from "@/app/actions/assignments";
 import { todayISO } from "@/lib/date";
 
+const FIELD =
+  "w-full border-b border-line bg-transparent px-0 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none";
+
 export function AssignmentForm() {
   return (
-    <form
-      action={createAssignmentAction}
-      className="space-y-3 rounded-md border border-line bg-surface p-4"
-    >
-      <div className="flex gap-4 text-sm">
+    <form action={createAssignmentAction} className="space-y-5">
+      <div className="flex gap-5 text-sm">
         <label className="flex items-center gap-1.5 text-text-dim">
           <input type="radio" name="type" value="abgabe" defaultChecked className="accent-accent" />
           Abgabe
@@ -18,39 +18,29 @@ export function AssignmentForm() {
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          name="subject"
-          placeholder="Fach"
-          required
-          className="rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
-        />
+      <div className="grid grid-cols-2 gap-5">
+        <input name="subject" placeholder="Fach" required className={FIELD} />
         <input
           name="dueDate"
           type="date"
           required
           defaultValue={todayISO()}
-          className="rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
+          className={FIELD}
         />
       </div>
 
-      <input
-        name="title"
-        placeholder="Titel"
-        required
-        className="w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
-      />
+      <input name="title" placeholder="Titel" required className={FIELD} />
 
       <textarea
         name="note"
         placeholder="Notiz (optional)"
         rows={2}
-        className="w-full resize-none rounded-md border border-line bg-surface-2 px-3 py-2 text-sm text-text placeholder:text-text-faint focus:border-accent focus:outline-none"
+        className={`${FIELD} resize-none`}
       />
 
       <button
         type="submit"
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-bg transition-opacity hover:opacity-90"
+        className="bg-accent px-4 py-2 text-sm text-bg transition-opacity hover:opacity-90"
       >
         Eintragen
       </button>

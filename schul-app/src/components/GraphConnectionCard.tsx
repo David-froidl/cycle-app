@@ -1,3 +1,5 @@
+import { Tag } from "@/components/Tag";
+
 export function GraphConnectionCard({
   connected,
   configured,
@@ -11,13 +13,13 @@ export function GraphConnectionCard({
 }) {
   if (!configured) {
     return (
-      <section className="rounded-md border border-line bg-surface p-4">
+      <section className="border border-line bg-surface p-5">
         <h2 className="text-sm font-medium text-text">Microsoft Teams</h2>
         <p className="mt-2 text-sm text-text-dim">
           Nicht konfiguriert. MS_CLIENT_ID, MS_CLIENT_SECRET und MS_REDIRECT_URI als
           Environment Variables setzen (Azure AD App-Registrierung), siehe README.
         </p>
-        <p className="mt-2 text-xs text-text-faint">
+        <p className="mt-2 text-xs text-text-dim">
           Falls die Schule OAuth für Schüler-Accounts sperrt: Foto-Upload der
           Unterlagen ist die Notlösung, kein manuelles Abtippen nötig.
         </p>
@@ -26,25 +28,21 @@ export function GraphConnectionCard({
   }
 
   return (
-    <section className="rounded-md border border-line bg-surface p-4">
+    <section className="border border-line bg-surface p-5">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-text">Microsoft Teams</h2>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[0.7rem] ${
-            connected ? "bg-ok-soft text-ok" : "bg-surface-2 text-text-dim"
-          }`}
-        >
+        <Tag tone={connected ? "accent" : "neutral"}>
           {connected ? "Verbunden" : "Nicht verbunden"}
-        </span>
+        </Tag>
       </div>
       {justConnected && (
-        <p className="mt-2 text-xs text-ok">Verbindung erfolgreich hergestellt.</p>
+        <p className="mt-2 text-xs text-accent">Verbindung erfolgreich hergestellt.</p>
       )}
       {error && <p className="mt-2 text-xs text-danger">Fehler: {error}</p>}
       {!connected && (
         <a
           href="/api/graph/login"
-          className="mt-3 inline-block rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-bg hover:opacity-90"
+          className="mt-4 inline-block bg-accent px-3 py-1.5 text-xs text-bg hover:opacity-90"
         >
           Mit Microsoft verbinden
         </a>
